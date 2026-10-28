@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Chroniques : répertoire personnel de personnages de JDR, univers et histoires.">
+<meta name="theme-color" content="#16191a">
+<title>Chroniques — Répertoire de personnages</title>
+<!-- Polices facultatives en ligne ; les familles de secours assurent la lecture hors connexion. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&amp;family=Cinzel:wght@400;500;600&amp;family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&amp;family=Lora:ital,wght@0,400;0,500;1,400&amp;family=Noto+Serif+JP:wght@400;500;600&amp;family=Rajdhani:wght@400;500;600&amp;family=Share+Tech+Mono&amp;family=Space+Grotesk:wght@400;500;600&amp;family=Spectral:ital,wght@0,400;0,500;1,400&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body data-theme="kiku">
+<div class="app">
+<aside class="sidebar">
+<div class="brand">CHRONIQUES<small>ARCHIVE DE PERSONNAGES</small>
+</div>
+<div>
+<div class="sidehead">Univers</div>
+<nav id="universes" class="universe-list" aria-label="Univers">
+</nav>
+<button id="addUniverse">＋ Ajouter un univers</button>
+</div>
+<input id="search" type="search" aria-label="Rechercher un personnage" placeholder="Rechercher un personnage…">
+<div>
+<div class="sidehead">Personnages</div>
+<div id="characters" class="charlist">
+</div>
+</div>
+<div id="sidebarArt" class="sidebar-art" aria-hidden="true">
+</div>
+<div class="tools">
+<button id="export">↓ Exporter la sauvegarde</button>
+<button id="import">↑ Importer une sauvegarde</button>
+<button id="guide">? Mode d’emploi</button>
+<input id="importFile" type="file" accept=".json,application/json" hidden>
+</div>
+</aside>
+<main class="stage">
+<header class="banner">
+<div id="status" class="status" role="status">
+</div>
+<div class="actions">
+<button id="new">＋ Nouveau personnage</button>
+<button id="edit" class="primary">✎ Modifier la fiche</button>
+</div>
+<div id="headerArt" class="header-art" aria-hidden="true">
+</div>
+<div id="hero">
+</div>
+</header>
+<nav id="tabs" class="tabs" aria-label="Rubriques">
+</nav>
+<div id="content" class="content">
+</div>
+<footer class="footer">CHRONIQUES · Un répertoire, mille univers. <span id="count">
+</span>
+</footer>
+</main>
+</div>
+<dialog id="editor">
+<form id="characterForm">
+<div class="modalhead">
+<h2 id="editorTitle">Nouveau personnage</h2>
+<button type="button" data-close aria-label="Fermer">✕</button>
+</div>
+<div class="formbody">
+<p class="help">Seul le prénom ou nom d’usage est obligatoire. Les rubriques vides restent discrètes. Les images peuvent être intégrées depuis ton ordinateur ou chargées par une adresse HTTPS.</p>
+<div class="formgrid">
+<label>Prénom / nom d’usage *<input name="first" required maxlength="150">
+</label>
+<label>Nom<input name="last" maxlength="150">
+</label>
+<label>Univers<select name="universe">
+</select>
+</label>
+<label>Âge<input name="age" maxlength="100">
+</label>
+<label>Profession<input name="job" maxlength="200">
+</label>
+<label>Espèce / peuple<input name="species" maxlength="200">
+</label>
+<label>Pronoms<input name="pronouns" maxlength="100">
+</label>
+<label>Statut<input name="status" maxlength="100" placeholder="En activité, disparu…">
+</label>
+<label class="wide">Citation<textarea name="quote" rows="2">
+</textarea>
+</label>
+<label class="wide">Portrait : adresse de l’image<input name="portrait" placeholder="https://…">
+</label>
+<label>Ou importer un portrait<input id="portraitUpload" type="file" accept="image/*">
+</label>
+<label>Cadrage vertical du portrait<input name="position" type="range" min="0" max="100" value="35">
+</label>
+<label>
+<input name="filter" type="checkbox" checked> Appliquer le filtre visuel de l’univers</label>
+<label class="wide">Adjectifs du caractère, séparés par des virgules<input name="traits" placeholder="Loyal, impulsif, curieux…">
+</label>
+<label class="wide">Caractère<textarea name="personality" rows="5">
+</textarea>
+</label>
+<label class="wide">Histoire<textarea name="history" rows="8">
+</textarea>
+</label>
+</div>
+<div id="repeaters">
+</div>
+<p id="formError" class="danger" role="alert">
+</p>
+</div>
+<div class="modalfoot">
+<button type="button" id="deleteChar" class="danger">Supprimer ce personnage</button>
+<button type="button" data-close>Annuler</button>
+<button type="submit" class="primary">Enregistrer la fiche</button>
+</div>
+</form>
+</dialog>
+<dialog id="universeDialog">
+<form id="universeForm">
+<div class="modalhead">
+<h2>Un nouvel univers</h2>
+<button type="button" data-close>✕</button>
+</div>
+<div class="formbody">
+<label>Nom de l’univers<input name="name" required maxlength="100">
+</label>
+<label>Thème visuel de départ<select name="theme">
+</select>
+</label>
+<p class="help">Ce nouvel univers réutilise l’un des sept thèmes. Son nom apparaît dans le menu et les formulaires.</p>
+</div>
+<div class="modalfoot">
+<button class="primary">Ajouter l’univers</button>
+</div>
+</form>
+</dialog>
+<dialog id="helpDialog">
+<div class="modalhead">
+<h2>Ton carnet de mondes</h2>
+<button data-close>✕</button>
+</div>
+<div class="formbody">
+<p>Crée une fiche, choisis son univers, puis complète librement les rubriques. « Modifier la fiche » permet ensuite de changer chaque texte, lien, image ou événement et de réorganiser les listes avec les flèches.</p>
+<p>Les changements sont enregistrés lorsque tu cliques sur « Enregistrer la fiche ». La sauvegarde appartient à ce navigateur et à cette adresse de fichier. La navigation privée, l’effacement des données ou le déplacement du fichier peuvent la rendre indisponible. Exporte régulièrement une copie JSON ; elle contient aussi les images importées.</p>
+<p>L’import fusionne les données : les identifiants identiques sont remplacés par ceux de la sauvegarde, les autres sont ajoutés. Une confirmation précède cette opération.</p>
+<p>Les images importées sont réduites à 1 600 pixels maximum pour préserver la place. Les images distantes et YouTube nécessitent Internet. Les liens YouTube s’ouvrent dans un nouvel onglet.</p>
+<p>Les deux premières fiches sont des exemples vides à personnaliser. Aucun contenu de personnage n’est inventé.</p>
+</div>
+</dialog>
+<div id="toast" class="notice hidden" role="status">
+</div>
+<script src="./app.js" defer>
+</script>
+</body>
+</html>
