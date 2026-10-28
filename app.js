@@ -1,14 +1,14 @@
 
 'use strict';
 const $=s=>document.querySelector(s),KEY='chroniques.archive.v1';
-const THEME_ART={
-  "kiku": "./assets/images/kiku.webp",
-  "adenium": "./assets/images/adenium.webp",
-  "fadiel": "./assets/images/fadiel.webp",
-  "chronicle": "./assets/images/chronicle.webp",
-  "codevein": "./assets/images/codevein.webp",
-  "goldensun": "./assets/images/goldensun.webp",
-  "mars": "./assets/images/mars.webp"
+const THEME_ART = {
+  kiku: "https://cdnb.artstation.com/p/assets/images/images/014/474/069/large/rafal-pyra-feudal-japan-the-shogunate-rafal-pyra-1.jpg?1544099950",
+  adenium: "https://cdnb.artstation.com/p/assets/images/images/042/227/889/large/a-018f045ddb4c81a8012053c04b2bec-jpg-3000w-1l-2o-100sh.jpg?1633947483",
+  fadiel: "https://wallpapershome.com/images/pages/pic_h/29633.jpg",
+  chronicle: "https://i.pinimg.com/1200x/0a/13/36/0a13368a5bdda033ff04aedb2664c4b4.jpg",
+  codevein: "https://cdna.artstation.com/p/assets/images/images/057/550/994/4k/katya-gudkina-citadel-of-blood-sm.jpg?1741662719",
+  goldensun: "https://cdna.artstation.com/p/assets/images/images/075/236/470/large/pavel-yak-pavel-yak-11-1.jpg?1714081150",
+  mars: "https://cdna.artstation.com/p/assets/images/images/065/765/956/large/alex-ichim-sf2.jpg?1691158448"
 };
 let lastDecorTheme='';function renderDecor(theme){if(lastDecorTheme===theme)return;lastDecorTheme=theme;const art=THEME_ART[theme]||THEME_ART.kiku;const scene=(y)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${y} 1536 512" preserveAspectRatio="xMidYMid slice" focusable="false"><image href="${art}" x="0" y="0" width="1536" height="1024"/></svg>`;$('#headerArt').innerHTML=scene(0);$('#sidebarArt').innerHTML=scene(512);}
 
