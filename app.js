@@ -1,4 +1,3 @@
-
 'use strict';
 const $=s=>document.querySelector(s),KEY='chroniques.archive.v1';
 const THEME_ART = {
@@ -10,7 +9,52 @@ const THEME_ART = {
   goldensun: "https://cdna.artstation.com/p/assets/images/images/075/236/470/large/pavel-yak-pavel-yak-11-1.jpg?1714081150",
   mars: "https://cdna.artstation.com/p/assets/images/images/065/765/956/large/alex-ichim-sf2.jpg?1691158448"
 };
-let lastDecorTheme='';function renderDecor(theme){if(lastDecorTheme===theme)return;lastDecorTheme=theme;const art=THEME_ART[theme]||THEME_ART.kiku;const scene=(y)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${y} 1536 512" preserveAspectRatio="xMidYMid slice" focusable="false"><image href="${art}" x="0" y="0" width="1536" height="1024"/></svg>`;$('#headerArt').innerHTML=scene(0);$('#sidebarArt').innerHTML=scene(512);}
+let lastDecorTheme = '';
+function renderDecor(theme) {
+  if (lastDecorTheme === theme) return;
+  lastDecorTheme = theme;
+  // Un simple lien utilise la même image, cadrée indépendamment dans les deux zones.
+  // Un objet permet de choisir deux images et deux cadrages distincts.
+  const art = THEME_ART[theme] || THEME_ART.kiku;
+  const config = typeof art === 'string' ? { header: art, menu: art } : art;
+  const scenes = [
+    ['#headerArt', config.header, config.headerPosition || 'center 40%'],
+    ['#sidebarArt', config.menu || config.header, config.menuPosition || 'center center']
+  ];
+  scenes.forEach(([selector, source, position]) => {
+    const container = $(selector);
+    if (!container) return;
+    container.replaceChildren();
+    container.style.backgroundImage = 'none';
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundRepeat = 'no-repeat';
+    container.style.backgroundPosition = position;
+    let url = '';
+    try {
+      const resolved = new URL(source, document.baseURI);
+      if (['https:', 'http:', 'file:'].includes(resolved.protocol)) url = resolved.href;
+    } catch { /* Adresse invalide : aucun décor chargé. */ }
+    if (!url) return;
+    // Une vraie image HTML : pas de SVG ni de découpage en deux panneaux.
+    const img = new Image();
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    Object.assign(img.style, {
+      display: 'block', position: 'absolute', inset: '0', width: '100%',
+      height: '100%', objectFit: 'cover', objectPosition: position,
+      filter: 'none', opacity: '1'
+    });
+    img.onerror = () => {
+      img.remove();
+      console.warn('Décor indisponible :', source);
+      toast('Une image de décor ne charge pas. Vérifie son lien direct ou héberge-la dans assets/images.');
+    };
+    img.src = url;
+    container.appendChild(img);
+  });
+}
 
 const baseUniverses=[{id:'kiku',name:'Kiku no Teikoku',theme:'kiku',icon:'⛩',desc:'Dark fantasy · Japon médiéval'},{id:'adenium',name:'Adenium',theme:'adenium',icon:'⌁',desc:'Cyberpunk · Dystopie'},{id:'fadiel',name:'Fa’Diel',theme:'fadiel',icon:'❦',desc:'Low fantasy · Contes et nature'},{id:'chronicle',name:'Chronicle',theme:'chronicle',icon:'⚜',desc:'Heroic fantasy · Chroniques et blasons'},{id:'codevein',name:'Code Vein',theme:'codevein',icon:'†',desc:'Gothique · Sang et cendres'},{id:'goldensun',name:'Golden Sun',theme:'goldensun',icon:'☀',desc:'Éléments · Alchimie et aventure'},{id:'mars',name:'Beyond Mars',theme:'mars',icon:'◎',desc:'Space opera · Horizons martiens'}];
 const groups={extras:{title:'Informations complémentaires',fields:[['label','Intitulé'],['value','Valeur']]},docs:{title:'Fiches PJ · Google Docs',fields:[['title','Titre du lien'],['url','Adresse HTTPS']]},chinese:{title:'Portrait chinois',fields:[['question','Si j’étais…'],['answer','Je serais…']]},playlist:{title:'Playlist · YouTube',fields:[['title','Titre du morceau'],['url','Lien YouTube'],['note','Annotation']]},moodboard:{title:'Moodboard',fields:[['url','Adresse de l’image'],['caption','Légende']]},events:{title:'Faits marquants',fields:[['date','Date libre (en jeu ou réelle)'],['title','Titre'],['text','Récit','textarea'],['image','Image (adresse facultative)']]}};
