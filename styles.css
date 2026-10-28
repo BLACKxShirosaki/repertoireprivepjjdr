@@ -841,3 +841,22 @@ body[data-theme=codevein] .banner h1 {
   .overview > .stack { height: auto; overflow: visible; }
   .overview .stack > .card { flex: none; max-height: 350px; }
 }
+
+/* Onglet Moodboard : vignettes compactes, proportions préservées. */
+#content > .card > .mood {
+  columns: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 180px));
+  align-items: start;
+  gap: 14px;
+}
+#content > .card > .mood figure {
+  min-width: 0;
+  margin: 0;
+}
+#content > .card > .mood img {
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  object-fit: contain;
+}
