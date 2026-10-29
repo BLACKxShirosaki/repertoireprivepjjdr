@@ -842,23 +842,23 @@ body[data-theme=codevein] .banner h1 {
   .overview .stack > .card { flex: none; max-height: 350px; }
 }
 
-/* Moodboard en colonnes continues : largeur commune, hauteur naturelle. */
+/* Moodboard façon Pinterest : colonnes indépendantes et images entières. */
 #content > .card > .mood {
   display: block;
-  column-width: 180px;
+  column-width: 190px;
   column-count: auto;
-  column-gap: 0;
+  column-gap: 16px;
 }
 #content > .card > .mood figure {
+  display: inline-block;
+  vertical-align: top;
   position: relative;
   width: 100%;
   min-width: 0;
-  margin: 0;
+  margin: 0 0 16px;
   padding: 0;
   break-inside: avoid;
   page-break-inside: avoid;
-  overflow: hidden;
-  border-radius: 0;
 }
 #content > .card > .mood img {
   display: block;
@@ -866,21 +866,18 @@ body[data-theme=codevein] .banner h1 {
   height: auto;
   max-width: none;
   max-height: none;
+  aspect-ratio: auto;
   margin: 0;
   padding: 0;
-  border-radius: 0;
+  border-radius: 14px;
 }
-/* Les légendes se superposent pour ne pas interrompre la mosaïque. */
 #content > .card > .mood figcaption {
-  position: absolute;
-  inset: auto 0 0;
+  position: static;
   margin: 0;
-  padding: 18px 9px 7px;
-  color: #fff;
-  background: linear-gradient(transparent, rgba(0, 0, 0, .8));
+  padding: 7px 4px 0;
+  color: var(--muted);
+  background: none;
   overflow-wrap: anywhere;
-  max-height: 100%;
-  overflow-y: auto;
 }
 #content > .card > .mood figcaption:empty {
   display: none;
@@ -888,5 +885,9 @@ body[data-theme=codevein] .banner h1 {
 @media (max-width: 480px) {
   #content > .card > .mood {
     column-width: 120px;
+    column-gap: 10px;
+  }
+  #content > .card > .mood figure {
+    margin-bottom: 10px;
   }
 }
