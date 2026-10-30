@@ -891,3 +891,53 @@ body[data-theme=codevein] .banner h1 {
     margin-bottom: 10px;
   }
 }
+
+/* Playlist : lignes compactes et miniatures YouTube. */
+.track {
+  display: grid;
+  grid-template-columns: 22px 42px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 8px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+a.track:hover, a.track:focus-visible {
+  background: color-mix(in srgb, var(--accent) 9%, var(--paper));
+}
+a.track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.track-number { font: 12px Arial, sans-serif; color: var(--muted); text-align: center; }
+.track .track-thumb {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.track .track-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--accent);
+}
+.track-info { display: block; min-width: 0; }
+.track-title { display: block; font-weight: 600; line-height: 1.35; }
+.track-note { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.track .play {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font: 11px/1 Arial, sans-serif;
+}
+@media (max-width: 480px) {
+  .track { grid-template-columns: 18px 38px minmax(0, 1fr) 24px; gap: 8px; }
+  .track .track-thumb { width: 38px; height: 38px; }
+}
