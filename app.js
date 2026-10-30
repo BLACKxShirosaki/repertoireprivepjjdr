@@ -1,3 +1,4 @@
+
 'use strict';
 const $=s=>document.querySelector(s),KEY='chroniques.archive.v1';
 const THEME_ART = {
@@ -74,7 +75,37 @@ function current(){return state.characters.find(c=>c.id===selected)}function uni
 function empty(t){return `<div class="empty">${esc(t)}</div>`}function card(title,body){return `<section class="card"><h2>${title}</h2>${body}</section>`}
 function docs(c){return c.docs.map(d=>link(d.url,d.title||'Fiche PJ · Google Docs','linkbutton')).join('')}
 function timeline(c,preview=false){const entries=preview?c.events.slice(0,2):c.events;return entries.length?`<div class="timeline">${entries.map(e=>`<article class="event"><small>${esc(e.date)}</small><h3>${esc(e.title)}</h3><div class="prose">${esc(preview?e.text.slice(0,160)+(e.text.length>160?'…':''):e.text)}</div>${!preview?imageHTML(e.image,e.title):''}</article>`).join('')}</div>`:empty('Les prochains chapitres attendent leur encre.')}
-function playlist(c,preview=false){const rows=preview?c.playlist.slice(0,3):c.playlist;return rows.length?rows.map(t=>{const u=safeURL(t.url);return `${u?`<a class="track" href="${esc(u)}" target="_blank" rel="noopener noreferrer">`:'<div class="track">'}<span class="play">▶</span><span>${esc(t.title||'Morceau sans titre')}<br><small>${esc(t.note)}</small></span>${u?' ↗</a>':'</div>'}`}).join(''):empty('Une bande-son à composer.')}
+// Reconnaît les liens classiques, courts, Shorts, live et intégrés.
+function youtubeVideoId(value) {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    let id = '';
+    if (host === 'youtu.be') id = u.pathname.split('/')[1];
+    else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
+      id = u.searchParams.get('v') || '';
+      if (!id && /^\/(shorts|embed|live)\//.test(u.pathname)) id = u.pathname.split('/')[2];
+    }
+    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
+  } catch { return ''; }
+}
+function playlist(c, preview = false) {
+  const rows = preview ? c.playlist.slice(0, 3) : c.playlist;
+  if (!rows.length) return empty('Une bande-son à composer.');
+  return rows.map((t, index) => {
+    const url = safeURL(t.url);
+    const id = youtubeVideoId(url);
+    const title = t.title || 'Morceau sans titre';
+    const artwork = id
+      ? `<img class="track-thumb" src="https://i.ytimg.com/vi/${id}/default.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+      : '<span class="track-thumb track-fallback" aria-hidden="true">♫</span>';
+    const opening = url
+      ? `<a class="track" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc('Écouter ' + title + ' sur YouTube (nouvel onglet)')}">`
+      : '<div class="track">';
+    return `${opening}<span class="track-number" aria-hidden="true">${index + 1}</span>${artwork}<span class="track-info"><span class="track-title">${esc(title)}</span>${t.note ? `<small class="track-note">${esc(t.note)}</small>` : ''}</span>${url ? '<span class="play" aria-hidden="true">▶</span>' : ''}${url ? '</a>' : '</div>'}`;
+  }).join('');
+}
+
 function mood(c,preview=false){const rows=preview?c.moodboard.slice(0,4):c.moodboard;return rows.length?`<div class="mood">${rows.map(m=>`<figure>${imageHTML(m.url,m.caption,'filter:'+(c.filter?'var(--filter)':'none'))}<figcaption>${esc(m.caption)}</figcaption></figure>`).join('')}</div>`:empty('Des images pour dessiner son univers.')}
 function render(){document.body.dataset.theme=uni().theme;renderDecor(uni().theme);$('#universes').innerHTML=state.universes.map(u=>`<button data-universe="${esc(u.id)}" class="${u.id===universe?'active':''}"><span class="sigil">${esc(u.icon)}</span>${esc(u.name)}</button>`).join('');const q=$('#search').value.toLocaleLowerCase();const chars=state.characters.filter(c=>c.universe===universe&&`${c.first} ${c.last}`.toLocaleLowerCase().includes(q));$('#characters').innerHTML=chars.map(c=>`<button class="sidechar ${c.id===selected?'active':''}" data-character="${esc(c.id)}">${c.portrait?imageHTML(c.portrait,'','width:36px;height:42px;object-fit:cover'):'<span class="sigil">✧</span>'}<span>${esc(c.first)} ${esc(c.last)}</span></button>`).join('')||'<small>Aucun personnage ici.</small>';const c=current();$('#edit').disabled=!c;$('#count').textContent=`${state.characters.length} personnage(s) · ${state.universes.length} univers`;$('#tabs').innerHTML=tabs.map((t,i)=>`<button data-tab="${i}" class="${i===tab?'active':''}" aria-current="${i===tab?'page':'false'}">${t}</button>`).join('');if(!c){$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().desc)}</div><h1>${esc(uni().name)}</h1><p>Un nouveau monde, des histoires à écrire.</p>`;$('#content').innerHTML=card('Le premier chapitre',empty('Crée un personnage dans cet univers avec le bouton « Nouveau personnage ».'));return}$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().name)} · ${esc(uni().desc)}</div><h1>${esc(c.first)} ${esc(c.last)}</h1><div class="quote">${esc(c.quote)}</div>`;if(tab===0){const items=[['Nom',c.last],['Prénom',c.first],['Âge',c.age],['Profession',c.job],['Espèce / peuple',c.species],['Pronoms',c.pronouns],['Statut',c.status],...c.extras.map(x=>[x.label,x.value])].filter(([k,v])=>v);$('#content').innerHTML=`<div class="overview"><section class="card portrait">${c.portrait?imageHTML(c.portrait,'Portrait de '+c.first,`object-position:center ${c.position}%;filter:${c.filter?'var(--filter)':'none'}`):'<div class="placeholder">✧<small>AJOUTER UN PORTRAIT</small></div>'}</section><div class="stack">${card('Identité',`<dl class="details">${items.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${docs(c)}`)}${card('Portrait chinois',c.chinese.length?`<dl class="details">${c.chinese.map(r=>`<dt>${esc(r.question)}</dt><dd>${esc(r.answer)}</dd>`).join('')}</dl>`:empty('Si j’étais…'))}</div>${card('Caractère',`<div class="tags">${c.traits.split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div><div class="prose">${esc(c.personality)||'Un caractère à dévoiler.'}</div>`)}</div><div class="previews">${card('Faits marquants',timeline(c,true))}${card('Playlist',playlist(c,true))}${card('Moodboard',mood(c,true))}</div>`}else if(tab===1)$('#content').innerHTML=card('Histoire',c.history?`<div class="prose">${esc(c.history)}</div>`:empty('Son histoire commence ici.'));else if(tab===2)$('#content').innerHTML=card('Faits marquants',timeline(c));else if(tab===3)$('#content').innerHTML=card('Playlist',playlist(c));else $('#content').innerHTML=card('Moodboard',mood(c));}
 $('#universes').onclick=e=>{const b=e.target.closest('[data-universe]');if(!b)return;universe=b.dataset.universe;selected=state.characters.find(c=>c.universe===universe)?.id;tab=0;render()};$('#characters').onclick=e=>{const b=e.target.closest('[data-character]');if(b){selected=b.dataset.character;tab=0;render()}};$('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){tab=+b.dataset.tab;render()}};$('#search').oninput=render;
