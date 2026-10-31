@@ -1,3 +1,121 @@
+// Éditeur d’histoire : mise en forme légère, sans HTML importé ni dépendance.
+function historyInline(value) {
+  return esc(value)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+    .replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+}
+function formatHistory(value) {
+  const lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
+  const html = [];
+  let paragraph = [], list = [], listType = '', quote = [];
+  const flushParagraph = () => { if (paragraph.length) { html.push('<p>' + paragraph.map(historyInline).join('<br>') + '</p>'); paragraph = []; } };
+  const flushList = () => { if (list.length) { html.push('<' + listType + '>' + list.map(s => '<li>' + historyInline(s) + '</li>').join('') + '</' + listType + '>'); list = []; listType = ''; } };
+  const flushQuote = () => { if (quote.length) { html.push('<blockquote>' + quote.map(historyInline).join('<br>') + '</blockquote>'); quote = []; } };
+  for (const line of lines) {
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    const item = line.match(/^\s*(?:([-*])|\d+\.)\s+(.+)$/);
+    const citation = line.match(/^>\s?(.*)$/);
+    if (!line.trim()) { flushParagraph(); flushList(); flushQuote(); }
+    else if (heading) {
+      flushParagraph(); flushList(); flushQuote();
+      const level = heading[1].length === 3 ? 3 : 2;
+      html.push('<h' + level + '>' + historyInline(heading[2]) + '</h' + level + '>');
+    } else if (/^\s*---+\s*$/.test(line)) {
+      flushParagraph(); flushList(); flushQuote(); html.push('<hr>');
+    } else if (item) {
+      flushParagraph(); flushQuote();
+      const type = item[1] ? 'ul' : 'ol';
+      if (listType && listType !== type) flushList();
+      listType = type; list.push(item[2]);
+    } else if (citation) {
+      flushParagraph(); flushList(); quote.push(citation[1]);
+    } else {
+      flushList(); flushQuote(); paragraph.push(line);
+    }
+  }
+  flushParagraph(); flushList(); flushQuote();
+  return html.join('');
+}
+function historyHTML(c) {
+  return c.historyFormat === 'markdown'
+    ? '<div class="history-rich">' + formatHistory(c.history) + '</div>'
+    : '<div class="prose">' + esc(c.history) + '</div>';
+}
+function updateHistoryPreview() {
+  const input = document.querySelector('textarea[name="history"]');
+  const preview = document.querySelector('#historyPreview');
+  if (!input || !preview) return;
+  preview.innerHTML = input.value.trim()
+    ? (input.dataset.format === 'markdown' ? formatHistory(input.value) : '<p class="history-plain">' + esc(input.value) + '</p>')
+    : '<p class="empty">Les premières lignes de son histoire…</p>';
+}
+function refreshHistoryEditor(character) {
+  const input = document.querySelector('textarea[name="history"]');
+  if (!input) return;
+  input.dataset.format = character.historyFormat || 'plain';
+  updateHistoryPreview();
+}
+function setupHistoryEditor() {
+  const input = document.querySelector('textarea[name="history"]');
+  if (!input || document.querySelector('#historyToolbar')) return;
+  const field = document.createElement('div');
+  field.className = 'wide history-field';
+  const label = document.createElement('label');
+  input.id = 'historyText'; label.htmlFor = input.id; label.textContent = 'Histoire';
+  input.parentElement.replaceWith(field);
+  field.appendChild(label);
+  const toolbar = document.createElement('div');
+  toolbar.id = 'historyToolbar'; toolbar.className = 'history-toolbar';
+  toolbar.setAttribute('role', 'group'); toolbar.setAttribute('aria-label', 'Mise en forme de l’histoire');
+  const actions = [
+    ['Sous-titre', 'heading', '## '], ['Intertitre', 'heading', '### '],
+    ['Gras', 'inline', '**'], ['Italique', 'inline', '*'], ['Barré', 'inline', '~~'],
+    ['Liste', 'lines', '- '], ['Liste numérotée', 'lines', '1. '], ['Citation', 'lines', '> '],
+    ['Séparation', 'rule', '']
+  ];
+  actions.forEach(([title, type, marker]) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = title;
+    button.setAttribute('aria-controls', input.id);
+    button.addEventListener('mousedown', e => e.preventDefault());
+    button.addEventListener('click', () => {
+      let start = input.selectionStart, end = input.selectionEnd;
+      const originalScroll = input.scrollTop;
+      let selected = input.value.slice(start, end), replacement, selectionStart, selectionEnd;
+      if (type === 'inline') {
+        selected = selected || 'ton texte'; replacement = marker + selected + marker;
+        selectionStart = start + marker.length; selectionEnd = selectionStart + selected.length;
+      } else if (type === 'rule') {
+        replacement = '\n\n---\n\n'; selectionStart = selectionEnd = start + replacement.length;
+      } else {
+        start = input.value.lastIndexOf('\n', start - 1) + 1;
+        const next = input.value.indexOf('\n', end);
+        end = next < 0 ? input.value.length : next;
+        selected = input.value.slice(start, end) || (type === 'heading' ? 'Titre du chapitre' : 'Ton texte');
+        replacement = selected.split('\n').map((line, index) => {
+          const prefix = title === 'Liste numérotée' ? (index + 1) + '. ' : marker;
+          return prefix + line.replace(type === 'heading' ? /^#{1,3}\s+/ : /^(?:[-*]|\d+\.|>)\s+/, '');
+        }).join('\n');
+        selectionStart = start; selectionEnd = start + replacement.length;
+      }
+      input.focus(); input.setRangeText(replacement, start, end, 'end');
+      input.setSelectionRange(selectionStart, selectionEnd); input.scrollTop = originalScroll;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    toolbar.appendChild(button);
+  });
+  const hint = document.createElement('small');
+  hint.id = 'historyHint'; hint.textContent = 'Sélectionne un passage puis un bouton. Les marques de mise en forme restent visibles dans le texte ; l’aperçu montre le résultat.';
+  input.setAttribute('aria-describedby', hint.id);
+  const details = document.createElement('details'); details.className = 'history-preview-panel'; details.open = true;
+  const summary = document.createElement('summary'); summary.textContent = 'Aperçu mis en forme';
+  const preview = document.createElement('div'); preview.id = 'historyPreview'; preview.className = 'history-rich';
+  details.append(summary, preview); field.append(toolbar, hint, input, details);
+  input.addEventListener('input', () => { input.dataset.format = 'markdown'; updateHistoryPreview(); });
+  updateHistoryPreview();
+}
+
 
 'use strict';
 const $=s=>document.querySelector(s),KEY='chroniques.archive.v1';
@@ -60,7 +178,7 @@ function renderDecor(theme) {
 const baseUniverses=[{id:'kiku',name:'Kiku no Teikoku',theme:'kiku',icon:'⛩',desc:'Dark fantasy · Japon médiéval'},{id:'adenium',name:'Adenium',theme:'adenium',icon:'⌁',desc:'Cyberpunk · Dystopie'},{id:'fadiel',name:'Fa’Diel',theme:'fadiel',icon:'❦',desc:'Low fantasy · Contes et nature'},{id:'chronicle',name:'Chronicle',theme:'chronicle',icon:'⚜',desc:'Heroic fantasy · Chroniques et blasons'},{id:'codevein',name:'Code Vein',theme:'codevein',icon:'†',desc:'Gothique · Sang et cendres'},{id:'goldensun',name:'Golden Sun',theme:'goldensun',icon:'☀',desc:'Éléments · Alchimie et aventure'},{id:'mars',name:'Beyond Mars',theme:'mars',icon:'◎',desc:'Space opera · Horizons martiens'}];
 const groups={extras:{title:'Informations complémentaires',fields:[['label','Intitulé'],['value','Valeur']]},docs:{title:'Fiches PJ · Google Docs',fields:[['title','Titre du lien'],['url','Adresse HTTPS']]},chinese:{title:'Portrait chinois',fields:[['question','Si j’étais…'],['answer','Je serais…']]},playlist:{title:'Playlist · YouTube',fields:[['title','Titre du morceau'],['url','Lien YouTube'],['note','Annotation']]},moodboard:{title:'Moodboard',fields:[['url','Adresse de l’image'],['caption','Légende']]},events:{title:'Faits marquants',fields:[['date','Date libre (en jeu ou réelle)'],['title','Titre'],['text','Récit','textarea'],['image','Image (adresse facultative)']]}};
 const tabs=['Présentation','Histoire','Faits marquants','Playlist','Moodboard'];
-const blank=()=>({id:uid(),first:'',last:'',universe:'kiku',age:'',job:'',species:'',pronouns:'',status:'',quote:'',portrait:'',position:35,filter:true,traits:'',personality:'',history:'',...Object.fromEntries(Object.keys(groups).map(k=>[k,[]]))});
+const blank=()=>({id:uid(),first:'',last:'',universe:'kiku',age:'',job:'',species:'',pronouns:'',status:'',quote:'',portrait:'',position:35,filter:true,traits:'',personality:'',history:'',historyFormat:'plain',...Object.fromEntries(Object.keys(groups).map(k=>[k,[]]))});
 function uid(){return globalThis.crypto?.randomUUID?.()||'c'+Date.now().toString(36)+Math.random().toString(36).slice(2)}
 let state={version:1,universes:baseUniverses.map(x=>({...x})),characters:[{...blank(),id:'demo-shun',first:'Shun',universe:'kiku'},{...blank(),id:'demo-saveli',first:'Saveli',universe:'adenium'}]},selected='demo-shun',universe='kiku',tab=0,draft=null,editing=false,toastTimer;
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -128,17 +246,17 @@ function playlist(c, preview = false) {
 }
 
 function mood(c,preview=false){const rows=preview?c.moodboard.slice(0,4):c.moodboard;return rows.length?`<div class="mood">${rows.map(m=>`<figure>${imageHTML(m.url,m.caption,'filter:'+(c.filter?'var(--filter)':'none'))}<figcaption>${esc(m.caption)}</figcaption></figure>`).join('')}</div>`:empty('Des images pour dessiner son univers.')}
-function render(){document.body.dataset.theme=uni().theme;renderDecor(uni().theme);$('#universes').innerHTML=state.universes.map(u=>`<button data-universe="${esc(u.id)}" class="${u.id===universe?'active':''}"><span class="sigil">${esc(u.icon)}</span>${esc(u.name)}</button>`).join('');const q=$('#search').value.toLocaleLowerCase();const chars=state.characters.filter(c=>c.universe===universe&&`${c.first} ${c.last}`.toLocaleLowerCase().includes(q));$('#characters').innerHTML=chars.map(c=>`<button class="sidechar ${c.id===selected?'active':''}" data-character="${esc(c.id)}">${c.portrait?imageHTML(c.portrait,'','width:36px;height:42px;object-fit:cover'):'<span class="sigil">✧</span>'}<span>${esc(c.first)} ${esc(c.last)}</span></button>`).join('')||'<small>Aucun personnage ici.</small>';const c=current();$('#edit').disabled=!c;$('#count').textContent=`${state.characters.length} personnage(s) · ${state.universes.length} univers`;$('#tabs').innerHTML=tabs.map((t,i)=>`<button data-tab="${i}" class="${i===tab?'active':''}" aria-current="${i===tab?'page':'false'}">${t}</button>`).join('');if(!c){$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().desc)}</div><h1>${esc(uni().name)}</h1><p>Un nouveau monde, des histoires à écrire.</p>`;$('#content').innerHTML=card('Le premier chapitre',empty('Crée un personnage dans cet univers avec le bouton « Nouveau personnage ».'));return}$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().name)} · ${esc(uni().desc)}</div><h1>${esc(c.first)} ${esc(c.last)}</h1><div class="quote">${esc(c.quote)}</div>`;if(tab===0){const items=[['Nom',c.last],['Prénom',c.first],['Âge',c.age],['Profession',c.job],['Espèce / peuple',c.species],['Pronoms',c.pronouns],['Statut',c.status],...c.extras.map(x=>[x.label,x.value])].filter(([k,v])=>v);$('#content').innerHTML=`<div class="overview"><section class="card portrait">${c.portrait?imageHTML(c.portrait,'Portrait de '+c.first,`object-position:center ${c.position}%;filter:${c.filter?'var(--filter)':'none'}`):'<div class="placeholder">✧<small>AJOUTER UN PORTRAIT</small></div>'}</section><div class="stack">${card('Identité',`<dl class="details">${items.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${docs(c)}`)}${card('Portrait chinois',c.chinese.length?`<dl class="details">${c.chinese.map(r=>`<dt>${esc(r.question)}</dt><dd>${esc(r.answer)}</dd>`).join('')}</dl>`:empty('Si j’étais…'))}</div>${card('Caractère',`<div class="tags">${c.traits.split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div><div class="prose">${esc(c.personality)||'Un caractère à dévoiler.'}</div>`)}</div><div class="previews">${card('Faits marquants',timeline(c,true))}${card('Playlist',playlist(c,true))}${card('Moodboard',mood(c,true))}</div>`}else if(tab===1)$('#content').innerHTML=card('Histoire',c.history?`<div class="prose">${esc(c.history)}</div>`:empty('Son histoire commence ici.'));else if(tab===2)$('#content').innerHTML=card('Faits marquants',timeline(c));else if(tab===3)$('#content').innerHTML=card('Playlist',playlist(c));else $('#content').innerHTML=card('Moodboard',mood(c));}
+function render(){document.body.dataset.theme=uni().theme;renderDecor(uni().theme);$('#universes').innerHTML=state.universes.map(u=>`<button data-universe="${esc(u.id)}" class="${u.id===universe?'active':''}"><span class="sigil">${esc(u.icon)}</span>${esc(u.name)}</button>`).join('');const q=$('#search').value.toLocaleLowerCase();const chars=state.characters.filter(c=>c.universe===universe&&`${c.first} ${c.last}`.toLocaleLowerCase().includes(q));$('#characters').innerHTML=chars.map(c=>`<button class="sidechar ${c.id===selected?'active':''}" data-character="${esc(c.id)}">${c.portrait?imageHTML(c.portrait,'','width:36px;height:42px;object-fit:cover'):'<span class="sigil">✧</span>'}<span>${esc(c.first)} ${esc(c.last)}</span></button>`).join('')||'<small>Aucun personnage ici.</small>';const c=current();$('#edit').disabled=!c;$('#count').textContent=`${state.characters.length} personnage(s) · ${state.universes.length} univers`;$('#tabs').innerHTML=tabs.map((t,i)=>`<button data-tab="${i}" class="${i===tab?'active':''}" aria-current="${i===tab?'page':'false'}">${t}</button>`).join('');if(!c){$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().desc)}</div><h1>${esc(uni().name)}</h1><p>Un nouveau monde, des histoires à écrire.</p>`;$('#content').innerHTML=card('Le premier chapitre',empty('Crée un personnage dans cet univers avec le bouton « Nouveau personnage ».'));return}$('#hero').innerHTML=`<div class="eyebrow">${esc(uni().name)} · ${esc(uni().desc)}</div><h1>${esc(c.first)} ${esc(c.last)}</h1><div class="quote">${esc(c.quote)}</div>`;if(tab===0){const items=[['Nom',c.last],['Prénom',c.first],['Âge',c.age],['Profession',c.job],['Espèce / peuple',c.species],['Pronoms',c.pronouns],['Statut',c.status],...c.extras.map(x=>[x.label,x.value])].filter(([k,v])=>v);$('#content').innerHTML=`<div class="overview"><section class="card portrait">${c.portrait?imageHTML(c.portrait,'Portrait de '+c.first,`object-position:center ${c.position}%;filter:${c.filter?'var(--filter)':'none'}`):'<div class="placeholder">✧<small>AJOUTER UN PORTRAIT</small></div>'}</section><div class="stack">${card('Identité',`<dl class="details">${items.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${docs(c)}`)}${card('Portrait chinois',c.chinese.length?`<dl class="details">${c.chinese.map(r=>`<dt>${esc(r.question)}</dt><dd>${esc(r.answer)}</dd>`).join('')}</dl>`:empty('Si j’étais…'))}</div>${card('Caractère',`<div class="tags">${c.traits.split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div><div class="prose">${esc(c.personality)||'Un caractère à dévoiler.'}</div>`)}</div><div class="previews">${card('Faits marquants',timeline(c,true))}${card('Playlist',playlist(c,true))}${card('Moodboard',mood(c,true))}</div>`}else if(tab===1)$('#content').innerHTML=card('Histoire',c.history?historyHTML(c):empty('Son histoire commence ici.'));else if(tab===2)$('#content').innerHTML=card('Faits marquants',timeline(c));else if(tab===3)$('#content').innerHTML=card('Playlist',playlist(c));else $('#content').innerHTML=card('Moodboard',mood(c));}
 $('#universes').onclick=e=>{const b=e.target.closest('[data-universe]');if(!b)return;universe=b.dataset.universe;selected=state.characters.find(c=>c.universe===universe)?.id;tab=0;render()};$('#characters').onclick=e=>{const b=e.target.closest('[data-character]');if(b){selected=b.dataset.character;tab=0;render()}};$('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){tab=+b.dataset.tab;render()}};$('#search').oninput=render;
 function options(){return state.universes.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}
-function openEditor(isEdit){editing=isEdit;draft=structuredClone(isEdit?current():{...blank(),universe});const f=$('#characterForm');f.reset();f.elements.universe.innerHTML=options();for(const k of Object.keys(draft)){const el=f.elements.namedItem(k);if(el){if(el.type==='checkbox')el.checked=draft[k];else el.value=draft[k]}}$('#editorTitle').textContent=isEdit?'Modifier '+draft.first:'Nouveau personnage';$('#deleteChar').hidden=!isEdit;$('#formError').textContent='';renderRepeaters();$('#editor').showModal()}
+function openEditor(isEdit){editing=isEdit;draft=structuredClone(isEdit?current():{...blank(),universe});const f=$('#characterForm');f.reset();f.elements.universe.innerHTML=options();for(const k of Object.keys(draft)){const el=f.elements.namedItem(k);if(el){if(el.type==='checkbox')el.checked=draft[k];else el.value=draft[k]}}$('#editorTitle').textContent=isEdit?'Modifier '+draft.first:'Nouveau personnage';$('#deleteChar').hidden=!isEdit;$('#formError').textContent='';refreshHistoryEditor(draft);renderRepeaters();$('#editor').showModal()}
 function renderRepeaters(){const active=document.activeElement;$('#repeaters').innerHTML=Object.entries(groups).map(([key,g])=>`<fieldset><legend>${g.title}</legend><div>${draft[key].map((r,i)=>`<div class="entry" data-group="${key}" data-index="${i}"><div class="entrytools"><button type="button" data-move="-1" ${i===0?'disabled':''} aria-label="Monter">↑</button><button type="button" data-move="1" ${i===draft[key].length-1?'disabled':''} aria-label="Descendre">↓</button><button type="button" data-remove>Retirer</button></div>${g.fields.map(([name,label,type])=>`<label>${label}${type==='textarea'?`<textarea data-field="${name}" rows="4">${esc(r[name])}</textarea>`:`<input data-field="${name}" value="${esc(r[name])}">`}</label>`).join('')}${key==='moodboard'||key==='events'?'<label>Ou importer une image<input data-upload type="file" accept="image/*"></label>':''}</div>`).join('')}</div><button type="button" data-add="${key}">＋ Ajouter une entrée</button></fieldset>`).join('')}
 $('#repeaters').oninput=e=>{const el=e.target;if(!el.dataset.field)return;const r=el.closest('[data-group]');draft[r.dataset.group][+r.dataset.index][el.dataset.field]=el.value};$('#repeaters').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.add){const g=b.dataset.add;draft[g].push(Object.fromEntries(groups[g].fields.map(([k])=>[k,''])));renderRepeaters();return}const r=b.closest('[data-group]');if(!r)return;const rows=draft[r.dataset.group],i=+r.dataset.index;if(b.hasAttribute('data-remove'))rows.splice(i,1);else if(b.dataset.move){const j=i+(+b.dataset.move);if(j>=0&&j<rows.length)[rows[i],rows[j]]=[rows[j],rows[i]]}renderRepeaters()};
 async function readImage(file){if(!file||!file.type.startsWith('image/'))throw Error('Sélectionne une image.');if(file.size>30*1024*1024)throw Error('Image trop lourde (30 Mo maximum).');const url=URL.createObjectURL(file);try{const img=new Image();img.src=url;await img.decode();const scale=Math.min(1,1600/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/webp',.86)}finally{URL.revokeObjectURL(url)}}
 let pendingImages=0;async function uploadImage(file,set){pendingImages++;try{set(await readImage(file));toast('Image intégrée à la fiche. Enregistre pour la conserver.')}catch(e){toast(e.message)}finally{pendingImages--}}
 $('#portraitUpload').onchange=e=>uploadImage(e.target.files[0],data=>{$('#characterForm').elements.portrait.value=data});$('#repeaters').onchange=e=>{if(!e.target.hasAttribute('data-upload'))return;const row=e.target.closest('[data-group]'),g=row.dataset.group,entry=draft[g][+row.dataset.index];uploadImage(e.target.files[0],data=>{entry[g==='events'?'image':'url']=data;renderRepeaters()})};
-$('#characterForm').onsubmit=e=>{e.preventDefault();if(pendingImages){$('#formError').textContent='Attends la fin du chargement des images.';return}const f=e.target;for(const k of Object.keys(draft)){const el=f.elements.namedItem(k);if(el)draft[k]=el.type==='checkbox'?el.checked:el.value}draft.position=+draft.position;draft.first=draft.first.trim();if(!draft.first){$('#formError').textContent='Indique un prénom ou un nom d’usage.';return}for(const row of draft.playlist){if(row.url){try{const u=new URL(row.url);if(!['https:','http:'].includes(u.protocol)||!['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be'].includes(u.hostname))throw Error()}catch{$('#formError').textContent='Un morceau contient un lien YouTube invalide.';return}}}const next=structuredClone(state);if(editing)next.characters[next.characters.findIndex(c=>c.id===draft.id)]=draft;else next.characters.push(draft);if(persist(next)){selected=draft.id;universe=draft.universe;$('#editor').close();render();toast('Fiche enregistrée.')}};
+$('#characterForm').onsubmit=e=>{e.preventDefault();if(pendingImages){$('#formError').textContent='Attends la fin du chargement des images.';return}const f=e.target;for(const k of Object.keys(draft)){const el=f.elements.namedItem(k);if(el)draft[k]=el.type==='checkbox'?el.checked:el.value}draft.historyFormat=f.elements.history.dataset.format||draft.historyFormat||'plain';draft.position=+draft.position;draft.first=draft.first.trim();if(!draft.first){$('#formError').textContent='Indique un prénom ou un nom d’usage.';return}for(const row of draft.playlist){if(row.url){try{const u=new URL(row.url);if(!['https:','http:'].includes(u.protocol)||!['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be'].includes(u.hostname))throw Error()}catch{$('#formError').textContent='Un morceau contient un lien YouTube invalide.';return}}}const next=structuredClone(state);if(editing)next.characters[next.characters.findIndex(c=>c.id===draft.id)]=draft;else next.characters.push(draft);if(persist(next)){selected=draft.id;universe=draft.universe;$('#editor').close();render();toast('Fiche enregistrée.')}};
 $('#deleteChar').onclick=()=>{if(!confirm('Supprimer définitivement cette fiche ? Une sauvegarde exportée permet de la récupérer.'))return;const next=structuredClone(state);next.characters=next.characters.filter(c=>c.id!==draft.id);if(persist(next)){$('#editor').close();selected=state.characters.find(c=>c.universe===universe)?.id;render()}};
 $('#new').onclick=()=>openEditor(false);$('#edit').onclick=()=>{if(current())openEditor(true)};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('#guide').onclick=()=>$('#helpDialog').showModal();$('#addUniverse').onclick=()=>{const f=$('#universeForm');f.reset();f.elements.theme.innerHTML=baseUniverses.map(u=>`<option value="${u.theme}">${esc(u.name)}</option>`).join('');$('#universeDialog').showModal()};$('#universeForm').onsubmit=e=>{e.preventDefault();const f=e.target,name=f.elements.name.value.trim();if(!name)return;const next=structuredClone(state),theme=f.elements.theme.value,id=uid();next.universes.push({id,name,theme,icon:'✦',desc:'Univers personnel'});if(persist(next)){universe=id;selected=null;$('#universeDialog').close();render()}};
 $('#export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='chroniques-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Sauvegarde exportée : conserve ce fichier JSON.')};$('#import').onclick=()=>$('#importFile').click();$('#importFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>50*1024*1024)throw Error('Le fichier dépasse 50 Mo.');const incoming=validate(JSON.parse(await file.text()));if(!confirm(`Importer ${incoming.characters.length} fiche(s) ? Les identifiants identiques seront remplacés. Exporte ta version actuelle avant de continuer si nécessaire.`))return;const next=structuredClone(state);for(const u of incoming.universes){const i=next.universes.findIndex(x=>x.id===u.id);if(i<0)next.universes.push(u);else next.universes[i]=u}for(const c of incoming.characters){const i=next.characters.findIndex(x=>x.id===c.id);if(i<0)next.characters.push(c);else next.characters[i]=c}if(persist(next)){selected=incoming.characters[0]?.id||selected;universe=current()?.universe||universe;render();toast('Sauvegarde importée.')}}catch(err){toast('Import impossible : '+err.message)}finally{e.target.value=''}};
-window.addEventListener('storage',e=>{if(e.key===KEY)toast('Les données ont changé dans un autre onglet. Exporte tes modifications avant de recharger cette page.')});document.addEventListener('error',e=>{if(e.target.tagName==='IMG'){e.target.alt='Image indisponible';e.target.style.minHeight='70px'}},true);render();
+window.addEventListener('storage',e=>{if(e.key===KEY)toast('Les données ont changé dans un autre onglet. Exporte tes modifications avant de recharger cette page.')});document.addEventListener('error',e=>{if(e.target.tagName==='IMG'){e.target.alt='Image indisponible';e.target.style.minHeight='70px'}},true);setupHistoryEditor();render();
