@@ -1,5 +1,4 @@
-/* Décors indépendants : à charger après styles.css. */
-:root { --ornament-size: 220px; --ornament-height: 86px; }
+/* Ornements de bordure — remplace entièrement le précédent ornements.css. */
 body[data-theme="kiku"] { --ornament: url("./assets/ornements/kiku.png"); }
 body[data-theme="adenium"] { --ornament: url("./assets/ornements/adenium.png"); }
 body[data-theme="fadiel"] { --ornament: url("./assets/ornements/fadiel.png"); }
@@ -8,47 +7,68 @@ body[data-theme="codevein"] { --ornament: url("./assets/ornements/codevein.png")
 body[data-theme="goldensun"] { --ornament: url("./assets/ornements/goldensun.png"); }
 body[data-theme="mars"] { --ornament: url("./assets/ornements/mars.png"); }
 
-/* Le titre réserve une zone distincte au décor : aucun texte recouvert. */
-#content .card:not(.portrait) > h2 {
+/* Aucun fronton au-dessus des titres. */
+#content .card:not(.portrait) > h2 { padding-top: 0; }
+#content .card:not(.portrait) > h2::before { content: none; }
+
+/* Le décor court dans les bandes haute et basse du cadre. */
+#content > .card,
+#content .overview > .card:not(.portrait) {
   position: relative;
-  padding-top: var(--ornament-height);
+  padding-top: 44px;
+  padding-bottom: 44px;
+  background-image: var(--ornament), var(--ornament);
+  background-repeat: no-repeat;
+  background-position: right 12px top -20px, left 12px bottom -20px;
+  background-size: 280px 90px;
+  box-shadow: inset 0 0 0 5px var(--paper), inset 0 0 0 6px var(--line);
 }
-#content .card:not(.portrait) > h2::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(100%, var(--ornament-size));
-  height: var(--ornament-height);
-  background: var(--ornament) center / contain no-repeat;
-  pointer-events: none;
+/* Les titres restent au premier plan, sur le fond du thème. */
+#content > .card > h2,
+#content .overview > .card:not(.portrait) > h2 {
+  position: relative;
+  margin-top: 0;
 }
-/* Présentation : petits frontons, sans modifier la hauteur des colonnes. */
-body[data-page="presentation"] { --ornament-size: 170px; --ornament-height: 58px; }
-/* Histoire : fronton central plus ample et rappel de fin de chapitre. */
-body[data-page="histoire"] { --ornament-size: 320px; --ornament-height: 108px; }
-body[data-page="histoire"] #content > .card::after {
-  content: "";
-  display: block;
-  width: min(100%, 240px);
-  height: 78px;
-  margin: 24px auto 0;
-  background: var(--ornament) center / contain no-repeat;
-  transform: rotate(180deg);
-  pointer-events: none;
+/* Évite la répétition de l’emblème dans tous les petits panneaux. */
+#content .stack > .card,
+#content .previews > .card {
+  background-image: none;
 }
-/* Chronologie : emblème à gauche, au-dessus du titre. */
-body[data-page="faits"] { --ornament-size: 230px; --ornament-height: 82px; }
-body[data-page="faits"] #content > .card > h2::before { left: 0; transform: none; }
-/* Playlist : fronton discret, les lignes restent compactes. */
-body[data-page="playlist"] { --ornament-size: 200px; --ornament-height: 72px; }
-/* Moodboard : décor du titre seulement, aucune image recouverte. */
-body[data-page="moodboard"] { --ornament-size: 260px; --ornament-height: 88px; }
+body[data-page="histoire"] #content > .card::after { content: none; }
+/* La place de l’identité dépend du contenu, le résumé occupe le reste. */
+.overview > .stack > .card:first-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.overview > .stack > .card:last-child {
+  flex: 0 1 auto;
+  min-height: 118px;
+  max-height: 38%;
+}
+/* Versions plus discrètes pour les pages riches en images et morceaux. */
+body[data-page="playlist"] #content > .card,
+body[data-page="moodboard"] #content > .card {
+  background-size: 240px 76px;
+  background-position: right 12px top -22px, left 12px bottom -22px;
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+body[data-page="histoire"] #content > .card {
+  background-size: 360px 110px;
+  background-position: center top -30px, center bottom -30px;
+  padding-top: 62px;
+  padding-bottom: 62px;
+}
 @media (max-width: 720px) {
-  body[data-page] { --ornament-size: 180px; --ornament-height: 62px; }
+  #content > .card,
+  #content .overview > .card:not(.portrait) {
+    background-size: 210px 68px;
+    background-position: right top -20px, left bottom -20px;
+    padding-top: 36px;
+    padding-bottom: 36px;
+  }
+  .overview > .stack > .card:last-child { max-height: 350px; }
 }
 @media print {
-  #content .card:not(.portrait) > h2 { padding-top: 0; }
-  #content .card > h2::before, body[data-page="histoire"] #content > .card::after { display: none; }
+  #content .card { background-image: none !important; box-shadow: none; }
 }
