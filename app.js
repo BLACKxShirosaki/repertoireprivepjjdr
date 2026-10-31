@@ -90,7 +90,7 @@ function youtubeVideoId(value) {
   } catch { return ''; }
 }
 function playlist(c, preview = false) {
-  const rows = c.playlist;
+  const rows = preview ? c.playlist.slice(0, 5) : c.playlist;
   if (!rows.length) return empty('Une bande-son à composer.');
   return rows.map((t, index) => {
     const url = safeURL(t.url);
