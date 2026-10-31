@@ -941,3 +941,22 @@ a.track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .track { grid-template-columns: 18px 38px minmax(0, 1fr) 24px; gap: 8px; }
   .track .track-thumb { width: 38px; height: 38px; }
 }
+/* Aperçus : hauteur fixe et contenu défilant */
+.previews {
+  align-items: stretch;
+}
+
+.previews > .card {
+  height: 480px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--paper);
+}
+
+.previews > .card > h2 {
+  position: sticky;
+  top: -22px;
+  z-index: 1;
+  background: var(--paper);
+}
